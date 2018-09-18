@@ -1,12 +1,13 @@
-#if defined(TARGET_IOS) || defined(TARGET_TVOS)
-#import <UIKit/UIKit.h>
 #import <TargetConditionals.h>
+
+#if defined(TARGET_IOS)
+#import <UIKit/UIKit.h>
 #import "AppDelegate.h"
 #else
 #import <Cocoa/Cocoa.h>
 #endif
 
-#if defined(TARGET_IOS) || defined(TARGET_TVOS)
+#if defined(TARGET_IOS)
 
 int main(int argc, char * argv[]) {
 

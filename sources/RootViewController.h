@@ -2,7 +2,7 @@
 @import UIKit;
 #define PlatformViewController UIViewController
 #else
-@import AppKit;
+#import<AppKit/AppKit.h>
 #define PlatformViewController NSViewController
 #endif
 
