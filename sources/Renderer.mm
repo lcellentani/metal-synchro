@@ -2,8 +2,12 @@
 #import "Sprite.h"
 
 #include <math.h>
+
 #include "imgui.h"
 #include "imgui_impl_metal.h"
+#if TARGET_OS_OSX
+#include "imgui_impl_osx.h"
+#endif
 
 static const NSUInteger cMaxBuffersInFlight = 3;
 
@@ -43,7 +47,7 @@ static const NSUInteger cMaxBuffersInFlight = 3;
         
         [self setupPipelinesUsingMetalKitView:mtkView];
         
-        [self setupImGUI];
+        [self setupImGui];
         
         [self generateSprites];
         
@@ -70,16 +74,6 @@ static const NSUInteger cMaxBuffersInFlight = 3;
 - (void)mtkView:(nonnull MTKView *)view drawableSizeWillChange:(CGSize)size {
     _viewportSize.x = size.width;
     _viewportSize.y = size.height;
-    
-    ImGuiIO &io = ImGui::GetIO();
-    io.DisplaySize.x = size.width;
-    io.DisplaySize.y = size.height;
-#if defined(TARGET_IOS)
-    CGFloat framebufferScale = view.window.screen.scale ?: UIScreen.mainScreen.scale;
-#else
-    CGFloat framebufferScale = 1.0; //view.window.screen.backingScaleFactor ?: NSScreen.mainScreen.backingScaleFactor;
-#endif
-    io.DisplayFramebufferScale = ImVec2(framebufferScale, framebufferScale);
 }
 
 - (void)drawInMTKView:(nonnull MTKView *)view {
@@ -91,6 +85,8 @@ static const NSUInteger cMaxBuffersInFlight = 3;
     float elapsed = _currentTime - _lastTime;
     
     [self simulateWithElapsedTime:elapsed drawableSize:_viewportSize];
+    
+    [self updateImGuiUsingView:view];
     
     id<MTLCommandBuffer> commandBuffer = [_commandQueue commandBuffer];
     commandBuffer.label = @"MyCommand";
@@ -117,9 +113,11 @@ static const NSUInteger cMaxBuffersInFlight = 3;
         
         [renderEncoder pushDebugGroup:@"Draw ImGui"];
         
-        ImGuiIO &io = ImGui::GetIO();
-        io.DeltaTime = 1 / float(view.preferredFramesPerSecond ?: 60);
         ImGui_ImplMetal_NewFrame(renderPassDescriptor);
+#if TARGET_OS_OSX
+        ImGui_ImplOSX_NewFrame(view);
+#endif
+        ImGui::NewFrame();
         
         ImGui::SetNextWindowPos(ImVec2(5.0f, 5.0f), ImGuiSetCond_FirstUseEver);
         ImGui::Begin("Global Params", nullptr, ImVec2(_viewportSize.x * 0.5f, _viewportSize.y * 0.2f), -1.f, ImGuiWindowFlags_AlwaysAutoResize);
@@ -159,12 +157,29 @@ static const NSUInteger cMaxBuffersInFlight = 3;
     }
 }
 
-- (void)setupImGUI {
+- (void)setupImGui {
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
-    ImGui::GetIO();
+    (void)ImGui::GetIO();
+    
     ImGui_ImplMetal_Init(_device);
+    
     ImGui::StyleColorsDark();
+}
+
+- (void)updateImGuiUsingView:(nonnull MTKView *)view {
+    ImGuiIO &io = ImGui::GetIO();
+    io.DisplaySize.x = view.bounds.size.width;
+    io.DisplaySize.y = view.bounds.size.height;
+    
+#if TARGET_OS_OSX
+    CGFloat framebufferScale = view.window.screen.backingScaleFactor ?: NSScreen.mainScreen.backingScaleFactor;
+#else
+    CGFloat framebufferScale = view.window.screen.scale ?: UIScreen.mainScreen.scale;
+#endif
+    io.DisplayFramebufferScale = ImVec2(framebufferScale, framebufferScale);
+    
+    io.DeltaTime = 1 / float(view.preferredFramesPerSecond ?: 60);
 }
 
 - (void)generateSprites {
