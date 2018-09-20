@@ -3,6 +3,10 @@
 
 #include <math.h>
 
+#include "Boid.h"
+#include "Swarm.h"
+#include "rand.h"
+
 #include "imgui.h"
 #include "imgui_impl_metal.h"
 #if TARGET_OS_OSX
@@ -30,6 +34,10 @@ static const NSUInteger cMaxBuffersInFlight = 3;
     NSUInteger _frameIndex;
     
     NSUInteger _totalSpriteVertexCount;
+    NSUInteger _totalBoidsCount;
+    
+    std::vector<boids::Boid> mBoids;
+    boids::Swarm mSwarm;
     
     float angle;
     float speed;
@@ -49,9 +57,9 @@ static const NSUInteger cMaxBuffersInFlight = 3;
         
         [self setupImGui];
         
-        [self generateSprites];
+        [self prepareSimulation:mtkView.bounds.size];
         
-        _totalSpriteVertexCount = Sprite.verticesCount * _sprites.count;
+        _totalSpriteVertexCount = Sprite.verticesCount * mBoids.size();
         NSUInteger spriteVertexBufferSize = _totalSpriteVertexCount * sizeof(PositionColorVertexFormat);
         for(NSUInteger bufferIndex = 0; bufferIndex < cMaxBuffersInFlight; bufferIndex++) {
             _vertexBuffers[bufferIndex] = [_device newBufferWithLength:spriteVertexBufferSize options:MTLResourceStorageModeShared];
@@ -74,6 +82,8 @@ static const NSUInteger cMaxBuffersInFlight = 3;
 - (void)mtkView:(nonnull MTKView *)view drawableSizeWillChange:(CGSize)size {
     _viewportSize.x = size.width;
     _viewportSize.y = size.height;
+    
+    mSwarm.SetBounds(_viewportSize.x, _viewportSize.y);
 }
 
 - (void)drawInMTKView:(nonnull MTKView *)view {
@@ -84,7 +94,9 @@ static const NSUInteger cMaxBuffersInFlight = 3;
     _currentTime = CACurrentMediaTime() - _startupTime;
     float elapsed = _currentTime - _lastTime;
     
+    float t0 = CACurrentMediaTime() - _startupTime;
     [self simulateWithElapsedTime:elapsed drawableSize:_viewportSize];
+    float t1 = CACurrentMediaTime() - _startupTime;
     
     [self updateImGuiUsingView:view];
     
@@ -121,7 +133,10 @@ static const NSUInteger cMaxBuffersInFlight = 3;
         
         ImGui::SetNextWindowPos(ImVec2(5.0f, 5.0f), ImGuiSetCond_FirstUseEver);
         ImGui::Begin("Global Params", nullptr, ImVec2(_viewportSize.x * 0.5f, _viewportSize.y * 0.2f), -1.f, ImGuiWindowFlags_AlwaysAutoResize);
-        ImGui::Text("Time: %f ms", elapsed);
+        ImGui::Text("Frame Time: %f ms", elapsed);
+        ImGui::Text("Simulation Time: %f ms", (t1 - t0));
+        ImGui::Text("Vertices: %lu", _totalSpriteVertexCount);
+        ImGui::Text("boids: %lu", _totalBoidsCount);
         ImGui::End();
         
         ImGui::Render();
@@ -182,79 +197,45 @@ static const NSUInteger cMaxBuffersInFlight = 3;
     io.DeltaTime = 1 / float(view.preferredFramesPerSecond ?: 60);
 }
 
-- (void)generateSprites {
-    NSMutableArray *sprites = [[NSMutableArray alloc] initWithCapacity:1];
-    
-    vector_float2 spritePosition;
-    spritePosition.x = 0.0;
-    spritePosition.y = 0.0;
-
-    vector_float4 sprite_color;
-    sprite_color.x = 1.0;
-    sprite_color.y = 0.0;
-    sprite_color.z = 0.0;
-    sprite_color.w = 1.0;
-    
-    Sprite * sprite = [Sprite new];
-    sprite.position = spritePosition;
-    sprite.color =sprite_color;
-    
-    [sprites addObject:sprite];
-    
-    _sprites = sprites;
+- (void)prepareSimulation:(CGSize)size {
+    float cx = size.width * 0.5f;
+    float cy = size.height * 0.5f;
+    float offset = 50.0f;
+    size_t boidsCount = 1024 * 2;
+    for(size_t n = 0; n < boidsCount; n++) {
+        auto px0 = boids::random::get(cx - offset, cx + offset);
+        auto py0 = boids::random::get(cy - offset, cy + offset);
+        auto dx = (boids::random::get(0, 100) > 50 ? 1.f : -1.f);
+        auto dy = (boids::random::get(0, 100) > 50 ? 1.f : -1.f);
+        auto angle = boids::random::get(0.f, 180.0f);
+        mBoids.emplace_back(px0, py0, boids::random::get(200.f, 300.f), boids::random::get(200.f, 300.f), dx, dy, angle);
+    }
+    _totalBoidsCount = mBoids.size();
 }
 
 - (void)simulateWithElapsedTime:(float)elapsedTime drawableSize:(vector_uint2)drawableSize {
+    mSwarm.Simulate(mBoids, elapsedTime);
+    
+    float halfWidth = drawableSize.x * 0.5f;
+    float halfHeight = drawableSize.y * 0.5f;
+    
+    vector_float4 color;
+    color.x = 1.0;
+    color.y = 0.0;
+    color.z = 0.0;
+    color.w = 1.0;
+    
     PositionColorVertexFormat *currentSpriteVertices = (PositionColorVertexFormat *)_vertexBuffers[_currentBuffer].contents;
     NSUInteger currentVertex = _totalSpriteVertexCount - 1;
-    NSUInteger spriteIdx = 0;
-
-    float limitX = drawableSize.x * 0.5;
-    float limitY = drawableSize.y * 0.5;
     
-    float a = angle / 180.0 * M_PI;
-    
-    float x = _sprites[spriteIdx].position.x + ((elapsedTime * speed * cosf(a)) * dirX);
-    float y = _sprites[spriteIdx].position.y + ((elapsedTime * speed * sinf(a)) * dirY);
-    
-    bool changeSpeed = false;
-    if (x < -limitX) {
-        x = -limitX;
-        dirX = -dirX;
-        changeSpeed = true;
-    }
-    if (x > limitX) {
-        x = limitX;
-        dirX = -dirX;
-        changeSpeed = true;
-    }
-    if (y < -limitY) {
-        y = -limitY;
-        dirY = -dirY;
-        changeSpeed = true;
-    }
-    if (y > limitY) {
-        y = limitY;
-        dirY = -dirY;
-        changeSpeed = true;
-    }
-    if (changeSpeed) {
-        speed += speed * 0.1f;
-        if (speed > maxSpeed) {
-            speed = maxSpeed;
+    for(auto& boid : mBoids) {
+        auto boidPosition = boid.mPosition;
+        for(NSInteger vertexOfSprite = Sprite.verticesCount - 1; vertexOfSprite >= 0 ; vertexOfSprite--) {
+            currentSpriteVertices[currentVertex].position.x = (Sprite.vertices[vertexOfSprite].position.x + boidPosition.x()) - halfWidth;
+            currentSpriteVertices[currentVertex].position.y = (Sprite.vertices[vertexOfSprite].position.y + boidPosition.y()) - halfHeight;
+            currentSpriteVertices[currentVertex].color = color;
+            currentVertex--;
         }
-    }
-    
-    vector_float2 position;
-    position.x = x;
-    position.y = y;
-                                                
-    _sprites[spriteIdx].position = position;
-    
-    for(NSInteger vertexOfSprite = Sprite.verticesCount - 1; vertexOfSprite >= 0 ; vertexOfSprite--) {
-        currentSpriteVertices[currentVertex].position = Sprite.vertices[vertexOfSprite].position + _sprites[spriteIdx].position;
-        currentSpriteVertices[currentVertex].color = _sprites[spriteIdx].color;
-        currentVertex--;
     }
 }
 

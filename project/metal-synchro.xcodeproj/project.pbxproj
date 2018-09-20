@@ -18,6 +18,10 @@
 		8A4080C52150439B00ADBE69 /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = 8A4080BE2150439B00ADBE69 /* main.m */; };
 		8A4080C8215045D800ADBE69 /* Renderer.mm in Sources */ = {isa = PBXBuildFile; fileRef = 8A4080C7215045D800ADBE69 /* Renderer.mm */; };
 		8A4080C9215045D800ADBE69 /* Renderer.mm in Sources */ = {isa = PBXBuildFile; fileRef = 8A4080C7215045D800ADBE69 /* Renderer.mm */; };
+		8A69726621542F5E00F95620 /* Boid.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 8A69726421542F5E00F95620 /* Boid.cpp */; };
+		8A69726721542F5E00F95620 /* Boid.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 8A69726421542F5E00F95620 /* Boid.cpp */; };
+		8A69726B2154319200F95620 /* Swarm.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 8A69726A2154319200F95620 /* Swarm.cpp */; };
+		8A69726C2154319200F95620 /* Swarm.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 8A69726A2154319200F95620 /* Swarm.cpp */; };
 		8A8F08442152DF3E0069CC8B /* imgui_demo.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 8A8F08372152DF3E0069CC8B /* imgui_demo.cpp */; };
 		8A8F08452152DF3E0069CC8B /* imgui_demo.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 8A8F08372152DF3E0069CC8B /* imgui_demo.cpp */; };
 		8A8F08462152DF3E0069CC8B /* imgui_impl_osx.mm in Sources */ = {isa = PBXBuildFile; fileRef = 8A8F08382152DF3E0069CC8B /* imgui_impl_osx.mm */; };
@@ -53,6 +57,12 @@
 		8A4080BF2150439B00ADBE69 /* AppDelegate.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = AppDelegate.h; path = ../sources/AppDelegate.h; sourceTree = "<group>"; };
 		8A4080C6215045D800ADBE69 /* Renderer.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = Renderer.h; path = ../sources/Renderer.h; sourceTree = "<group>"; };
 		8A4080C7215045D800ADBE69 /* Renderer.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; name = Renderer.mm; path = ../sources/Renderer.mm; sourceTree = "<group>"; };
+		8A69726421542F5E00F95620 /* Boid.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = Boid.cpp; path = ../sources/Boid.cpp; sourceTree = "<group>"; };
+		8A69726521542F5E00F95620 /* Boid.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = Boid.h; path = ../sources/Boid.h; sourceTree = "<group>"; };
+		8A6972682154303000F95620 /* vec3.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = vec3.h; path = ../sources/vec3.h; sourceTree = "<group>"; };
+		8A6972692154319200F95620 /* Swarm.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = Swarm.h; path = ../sources/Swarm.h; sourceTree = "<group>"; };
+		8A69726A2154319200F95620 /* Swarm.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = Swarm.cpp; path = ../sources/Swarm.cpp; sourceTree = "<group>"; };
+		8A69726D21543DB300F95620 /* rand.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = rand.h; path = ../sources/rand.h; sourceTree = "<group>"; };
 		8A8F08362152DF3E0069CC8B /* imstb_rectpack.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = imstb_rectpack.h; path = ../lib/imgui/imstb_rectpack.h; sourceTree = "<group>"; };
 		8A8F08372152DF3E0069CC8B /* imgui_demo.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = imgui_demo.cpp; path = ../lib/imgui/imgui_demo.cpp; sourceTree = "<group>"; };
 		8A8F08382152DF3E0069CC8B /* imgui_impl_osx.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; name = imgui_impl_osx.mm; path = ../lib/imgui/imgui_impl_osx.mm; sourceTree = "<group>"; };
@@ -121,6 +131,12 @@
 		8A4080AE215042FC00ADBE69 /* Application */ = {
 			isa = PBXGroup;
 			children = (
+				8A69726D21543DB300F95620 /* rand.h */,
+				8A6972682154303000F95620 /* vec3.h */,
+				8A69726521542F5E00F95620 /* Boid.h */,
+				8A69726421542F5E00F95620 /* Boid.cpp */,
+				8A6972692154319200F95620 /* Swarm.h */,
+				8A69726A2154319200F95620 /* Swarm.cpp */,
 				8AAEFB692151AA1900B63CA8 /* imgui */,
 				8AAEFB6621519F8400B63CA8 /* Shaders.metal */,
 				8AAEFB6521519D0400B63CA8 /* ShaderTypes.h */,
@@ -281,9 +297,11 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				8A69726721542F5E00F95620 /* Boid.cpp in Sources */,
 				8A8F084D2152DF3E0069CC8B /* imgui_widgets.cpp in Sources */,
 				8A8F084F2152DF3E0069CC8B /* imgui_impl_metal.mm in Sources */,
 				8AAEFB6821519F8400B63CA8 /* Shaders.metal in Sources */,
+				8A69726C2154319200F95620 /* Swarm.cpp in Sources */,
 				8AAEFB6421519ABF00B63CA8 /* Sprite.mm in Sources */,
 				8A4080C32150439B00ADBE69 /* RootViewController.mm in Sources */,
 				8A8F084B2152DF3E0069CC8B /* imgui_draw.cpp in Sources */,
@@ -300,9 +318,11 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				8A69726621542F5E00F95620 /* Boid.cpp in Sources */,
 				8A8F084C2152DF3E0069CC8B /* imgui_widgets.cpp in Sources */,
 				8A8F084E2152DF3E0069CC8B /* imgui_impl_metal.mm in Sources */,
 				8A4080C8215045D800ADBE69 /* Renderer.mm in Sources */,
+				8A69726B2154319200F95620 /* Swarm.cpp in Sources */,
 				8A4080C22150439B00ADBE69 /* RootViewController.mm in Sources */,
 				8AAEFB6321519ABF00B63CA8 /* Sprite.mm in Sources */,
 				8A8F084A2152DF3E0069CC8B /* imgui_draw.cpp in Sources */,
