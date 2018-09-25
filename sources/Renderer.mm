@@ -37,13 +37,7 @@ static const NSUInteger cMaxBuffersInFlight = 3;
     NSUInteger _totalBoidsCount;
     
     std::vector<boids::Boid> mBoids;
-    boids::Swarm mSwarm;
-    
-    float angle;
-    float speed;
-    float maxSpeed;
-    float dirX;
-    float dirY;
+    boids::Swarm* mSwarm;
 }
 
 - (nonnull instancetype)initWithMetalKitView:(nonnull MTKView *)mtkView {
@@ -69,12 +63,6 @@ static const NSUInteger cMaxBuffersInFlight = 3;
         _startupTime = CACurrentMediaTime();
         _lastTime = CACurrentMediaTime();
         _currentTime = 0;
-        
-        angle = 30.0;
-        speed = 200.0f;
-        maxSpeed = 500.0f;
-        dirX = 1.0f;
-        dirY = 1.0f;
     }
     return self;
 }
@@ -83,7 +71,7 @@ static const NSUInteger cMaxBuffersInFlight = 3;
     _viewportSize.x = size.width;
     _viewportSize.y = size.height;
     
-    mSwarm.SetBounds(_viewportSize.x, _viewportSize.y);
+    mSwarm->SetBounds(_viewportSize.x, _viewportSize.y);
 }
 
 - (void)drawInMTKView:(nonnull MTKView *)view {
@@ -198,10 +186,10 @@ static const NSUInteger cMaxBuffersInFlight = 3;
 }
 
 - (void)prepareSimulation:(CGSize)size {
-    float cx = size.width * 0.5f;
+    /*float cx = size.width * 0.5f;
     float cy = size.height * 0.5f;
     float offset = 50.0f;
-    size_t boidsCount = 1024 * 2;
+    size_t boidsCount = 2;//1024 * 2;
     for(size_t n = 0; n < boidsCount; n++) {
         auto px0 = boids::random::get(cx - offset, cx + offset);
         auto py0 = boids::random::get(cy - offset, cy + offset);
@@ -209,12 +197,21 @@ static const NSUInteger cMaxBuffersInFlight = 3;
         auto dy = (boids::random::get(0, 100) > 50 ? 1.f : -1.f);
         auto angle = boids::random::get(0.f, 180.0f);
         mBoids.emplace_back(px0, py0, boids::random::get(200.f, 300.f), boids::random::get(200.f, 300.f), dx, dy, angle);
-    }
+    }*/
+    
+    float cx = size.width * 0.5f;
+    float cy = size.height * 0.5f;
+    
+    mBoids.emplace_back(vec3(1.0f, 0.0f, 0.0f), vec3(100.0f, 0.0f, 0.0f));
+    mBoids.emplace_back(vec3(1.5f, 0.0f, 0.0f), vec3(100.0f, 100.0f, 0.0f));
     _totalBoidsCount = mBoids.size();
+    
+    mSwarm = new boids::Swarm(mBoids);
+    mSwarm->AddSteeringTarget(vec3(cx, cy, 0.0f));
 }
 
 - (void)simulateWithElapsedTime:(float)elapsedTime drawableSize:(vector_uint2)drawableSize {
-    mSwarm.Simulate(mBoids, elapsedTime);
+    mSwarm->Simulate(elapsedTime);
     
     float halfWidth = drawableSize.x * 0.5f;
     float halfHeight = drawableSize.y * 0.5f;

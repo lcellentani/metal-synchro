@@ -2,6 +2,7 @@
 
 #include <cmath>
 #include <cstdlib>
+#include <functional>
 
 class vec3 {
 public:
@@ -65,9 +66,43 @@ public:
 		return result / result.length();
 	}
 
+    vec3 clampLength(float l) const {
+        float ll = length();
+        if (ll > l) {
+            return normalized() * l;
+        }
+        return *this;
+    }
+    
+    vec3 negate() const {
+        return vec3(-mData[0], -mData[1], -mData[2]);
+    }
+    
+    float angleTo(const vec3& other) const {
+        float l1 = length();
+        float l2 = other.length();
+        if (l1 == 0.0f || l2 == 0.0f) {
+            return 0.0f;
+        }
+        return (float)std::acos(dot(*this, other) / (l1 * l2)) * (360.0f / (M_PI * 2.0));
+    }
+    
+    float distanceTo(const vec3& other) const {
+        return std::sqrt(std::pow(other.mData[0] - mData[0], 2.0f) +
+                         std::pow(other.mData[1] - mData[1], 2.0f) +
+                         std::pow(other.mData[2] - mData[2], 2.0f));
+    }
+    
 	const vec3& operator+() const { return *this; }
 	vec3 operator-() const { return vec3(-mData[0], -mData[1], -mData[2]); }
 
+    vec3 operator+(float scalar) {
+        vec3 result(*this);
+        result.mData[0] += scalar;
+        result.mData[1] += scalar;
+        result.mData[2] += scalar;
+        return result;
+    }
 	vec3 operator+(const vec3& other) {
 		return vec3(*this) += other;
 	}
@@ -79,6 +114,13 @@ public:
 		return result;
 	}
 
+    vec3 operator-(float scalar) {
+        vec3 result(*this);
+        result.mData[0] -= scalar;
+        result.mData[1] -= scalar;
+        result.mData[2] -= scalar;
+        return result;
+    }
 	vec3 operator-(const vec3& other) {
 		return vec3(*this) -= other;
 	}
@@ -168,7 +210,22 @@ public:
 			(v1.mData[0] * v2.mData[1] - v1.mData[1] * v2.mData[0])
 		);
 	}
+    
+    friend bool operator==(const vec3& lhs, const vec3& rhs) {
+        return lhs.x() == rhs.x() && lhs.y() == rhs.y() && lhs.z() == rhs.z();
+    }
 
 private:
 	float mData[3]{ 0.0f };
 };
+
+namespace std {
+    template<> struct hash<vec3> {
+        std::size_t operator()(vec3 const& v) const noexcept {
+            std::size_t const h1(std::hash<float>()(v.x()));
+            //result_type const h2(std::hash<float>()(v.y()));
+            //result_type const h3(std::hash<float>()(v.z()));
+            return h1;//(h1 * 31 + h2) * 31 + h3;
+        }
+    };
+}
