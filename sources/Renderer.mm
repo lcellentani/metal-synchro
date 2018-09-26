@@ -34,10 +34,13 @@ static const NSUInteger cMaxBuffersInFlight = 3;
     NSUInteger _frameIndex;
     
     NSUInteger _totalSpriteVertexCount;
-    NSUInteger _totalBoidsCount;
     
+    std::size_t _totalBoidsCount;
     std::vector<boids::Boid> mBoids;
     boids::Swarm* mSwarm;
+    bool simulationReady;
+    vector_float4 _boldColor;
+    vector_float4 _targetColor;
 }
 
 - (nonnull instancetype)initWithMetalKitView:(nonnull MTKView *)mtkView {
@@ -51,13 +54,7 @@ static const NSUInteger cMaxBuffersInFlight = 3;
         
         [self setupImGui];
         
-        [self prepareSimulation:mtkView.bounds.size];
-        
-        _totalSpriteVertexCount = Sprite.verticesCount * mBoids.size();
-        NSUInteger spriteVertexBufferSize = _totalSpriteVertexCount * sizeof(PositionColorVertexFormat);
-        for(NSUInteger bufferIndex = 0; bufferIndex < cMaxBuffersInFlight; bufferIndex++) {
-            _vertexBuffers[bufferIndex] = [_device newBufferWithLength:spriteVertexBufferSize options:MTLResourceStorageModeShared];
-        }
+        simulationReady = false;
         
         _frameIndex = 0;
         _startupTime = CACurrentMediaTime();
@@ -71,7 +68,7 @@ static const NSUInteger cMaxBuffersInFlight = 3;
     _viewportSize.x = size.width;
     _viewportSize.y = size.height;
     
-    mSwarm->SetBounds(_viewportSize.x, _viewportSize.y);
+    [self prepareSimulation:size];
 }
 
 - (void)drawInMTKView:(nonnull MTKView *)view {
@@ -125,6 +122,23 @@ static const NSUInteger cMaxBuffersInFlight = 3;
         ImGui::Text("Simulation Time: %f ms", (t1 - t0));
         ImGui::Text("Vertices: %lu", _totalSpriteVertexCount);
         ImGui::Text("boids: %lu", _totalBoidsCount);
+        ImGui::Separator();
+        float steerigWeight = mSwarm->GetSteeringWeight();
+        if (ImGui::SliderFloat("Steering", &steerigWeight, 0.0f, 1.0f)) {
+            mSwarm->SetSteeringWeight(steerigWeight);
+        }
+        float separationWeight = mSwarm->GetSeparationWeight();
+        if (ImGui::SliderFloat("Separation", &separationWeight, 0.0f, 1.0f)) {
+            mSwarm->SetSeparationWeight(separationWeight);
+        }
+        float cohesionWeight = mSwarm->GetCohesionWeight();
+        if (ImGui::SliderFloat("Cohesion", &cohesionWeight, 0.0f, 1.0f)) {
+            mSwarm->SetChoesionWeight(cohesionWeight);
+        }
+        float alignmentWeight = mSwarm->GetAlignmentWeight();
+        if (ImGui::SliderFloat("Alighment", &alignmentWeight, 0.0f, 1.0f)) {
+            mSwarm->SetAlignmentWeight(alignmentWeight);
+        }
         ImGui::End();
         
         ImGui::Render();
@@ -186,51 +200,106 @@ static const NSUInteger cMaxBuffersInFlight = 3;
 }
 
 - (void)prepareSimulation:(CGSize)size {
-    /*float cx = size.width * 0.5f;
-    float cy = size.height * 0.5f;
-    float offset = 50.0f;
-    size_t boidsCount = 2;//1024 * 2;
-    for(size_t n = 0; n < boidsCount; n++) {
-        auto px0 = boids::random::get(cx - offset, cx + offset);
-        auto py0 = boids::random::get(cy - offset, cy + offset);
-        auto dx = (boids::random::get(0, 100) > 50 ? 1.f : -1.f);
-        auto dy = (boids::random::get(0, 100) > 50 ? 1.f : -1.f);
-        auto angle = boids::random::get(0.f, 180.0f);
-        mBoids.emplace_back(px0, py0, boids::random::get(200.f, 300.f), boids::random::get(200.f, 300.f), dx, dy, angle);
-    }*/
+    if (simulationReady) {
+        return;
+    }
     
-    float cx = size.width * 0.5f;
-    float cy = size.height * 0.5f;
+    const float w = size.width;
+    const float h = size.height;
+    const float cx = w * 0.5f;
+    const float cy = h * 0.5f;
     
-    mBoids.emplace_back(vec3(1.0f, 0.0f, 0.0f), vec3(100.0f, 0.0f, 0.0f));
-    mBoids.emplace_back(vec3(1.5f, 0.0f, 0.0f), vec3(100.0f, 100.0f, 0.0f));
-    _totalBoidsCount = mBoids.size();
+    const vec3 cInitialPositions[] {
+        { -100.0f, -100.0f, 0.0f },
+        { w + 100.0f, -100.0f, 0.0f },
+        { -100.0f, h + 100.0f, 0.0f },
+        { w + 100.0f, h + 100.0f, 0.0f }
+    };
     
+    float offset = w * 0.1f;
+    _totalBoidsCount = 128;
+    for(std::size_t n = 0; n < _totalBoidsCount; n++) {
+        int ii = boids::random::get(0, 3);
+        auto pos = cInitialPositions[ii];
+        float dx = boids::random::get(0, 100) > 50 ? -1.0f : 1.0f;
+        float xx = boids::random::get(-20.0f, 20.0f);
+        pos.x() = pos.x() + dx * xx;
+        float dy = boids::random::get(0, 100) > 50 ? 1.0f : -1.0f;
+        float yy = boids::random::get(-20.0f, 20.0f);
+        pos.y() = pos.y() + dy * yy;
+        
+        float vx = boids::random::get(10.0f, 300.0f);
+        float vy = boids::random::get(10.0f, 300.0f);
+        mBoids.emplace_back(pos, vec3(vx, vy, 0.0f));
+    }
+
     mSwarm = new boids::Swarm(mBoids);
+    mSwarm->SetMaximumVelocity(300.0f);
+    mSwarm->SetMaximumAcceleration(100.0f);
+    mSwarm->SetChoesionWeight(0.7f);
+    mSwarm->SetAlignmentWeight(0.2f);
+    mSwarm->SetSteeringWeight(0.85f);
+    mSwarm->SetSeparationWeight(0.8f);
+    
+    offset = boids::random::get(50.0f, 200.0f);
+    mSwarm->AddSteeringTarget(vec3(cx + offset, cy + offset, 0.0f));
+    offset = boids::random::get(50.0f, 200.0f);
+    mSwarm->AddSteeringTarget(vec3(cx - offset, cy + offset, 0.0f));
+    offset = boids::random::get(50.0f, 200.0f);
+    mSwarm->AddSteeringTarget(vec3(cx + offset, cy - offset, 0.0f));
+    offset = boids::random::get(50.0f, 200.0f);
+    mSwarm->AddSteeringTarget(vec3(cx - offset, cy - offset, 0.0f));
     mSwarm->AddSteeringTarget(vec3(cx, cy, 0.0f));
+    
+    _totalSpriteVertexCount = Sprite.verticesCount * (mBoids.size() + mSwarm->GetSteeringTargetsCount());
+    NSUInteger spriteVertexBufferSize = _totalSpriteVertexCount * sizeof(PositionColorVertexFormat);
+    for(NSUInteger bufferIndex = 0; bufferIndex < cMaxBuffersInFlight; bufferIndex++) {
+        _vertexBuffers[bufferIndex] = [_device newBufferWithLength:spriteVertexBufferSize options:MTLResourceStorageModeShared];
+    }
+    
+    _boldColor.x = 1.0;
+    _boldColor.y = 0.0;
+    _boldColor.z = 0.0;
+    _boldColor.w = 1.0;
+    
+    _targetColor.x = 0.0;
+    _targetColor.y = 1.0;
+    _targetColor.z = 0.0;
+    _targetColor.w = 1.0;
+    
+    
+    simulationReady = true;
 }
 
 - (void)simulateWithElapsedTime:(float)elapsedTime drawableSize:(vector_uint2)drawableSize {
+    if (!simulationReady) {
+        return;
+    }
+    
     mSwarm->Simulate(elapsedTime);
     
     float halfWidth = drawableSize.x * 0.5f;
     float halfHeight = drawableSize.y * 0.5f;
     
-    vector_float4 color;
-    color.x = 1.0;
-    color.y = 0.0;
-    color.z = 0.0;
-    color.w = 1.0;
-    
     PositionColorVertexFormat *currentSpriteVertices = (PositionColorVertexFormat *)_vertexBuffers[_currentBuffer].contents;
     NSUInteger currentVertex = _totalSpriteVertexCount - 1;
+    
+    for(std::size_t n = 0; n < mSwarm->GetSteeringTargetsCount(); n++) {
+        auto targetPosition = mSwarm->GetSteeringTargetAtIndex(n);
+        for(NSInteger vertexOfSprite = Sprite.verticesCount - 1; vertexOfSprite >= 0 ; vertexOfSprite--) {
+            currentSpriteVertices[currentVertex].position.x = (Sprite.vertices[vertexOfSprite].position.x + targetPosition.x()) - halfWidth;
+            currentSpriteVertices[currentVertex].position.y = (Sprite.vertices[vertexOfSprite].position.y + targetPosition.y()) - halfHeight;
+            currentSpriteVertices[currentVertex].color = _targetColor;
+            currentVertex--;
+        }
+    }
     
     for(auto& boid : mBoids) {
         auto boidPosition = boid.mPosition;
         for(NSInteger vertexOfSprite = Sprite.verticesCount - 1; vertexOfSprite >= 0 ; vertexOfSprite--) {
             currentSpriteVertices[currentVertex].position.x = (Sprite.vertices[vertexOfSprite].position.x + boidPosition.x()) - halfWidth;
             currentSpriteVertices[currentVertex].position.y = (Sprite.vertices[vertexOfSprite].position.y + boidPosition.y()) - halfHeight;
-            currentSpriteVertices[currentVertex].color = color;
+            currentSpriteVertices[currentVertex].color = _boldColor;
             currentVertex--;
         }
     }

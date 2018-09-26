@@ -30,11 +30,6 @@ float TransformDistance(float distance, boids::Swarm::DistanceType type) {
 
 namespace boids {
 
-void Swarm::SetBounds(uint32_t width, uint32_t height) {
-    mBoundsWidth = width;
-    mBoundsHeight = height;
-}
-
 void Swarm::Simulate(float time) {
     if (mEntities.empty()) {
         return;

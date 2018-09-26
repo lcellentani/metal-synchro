@@ -26,13 +26,36 @@ public:
     
     Swarm(std::vector<Boid>& boids) : mEntities(boids) {}
     
-    void SetBounds(uint32_t width, uint32_t height);
-    
     void AddSteeringTarget(const vec3& target) {
         mSteeringTargets.emplace_back(target);
     }
+    std::size_t GetSteeringTargetsCount() const { return mSteeringTargets.size(); }
+    vec3 GetSteeringTargetAtIndex(std::size_t index) const {
+        if (index < mSteeringTargets.size()) {
+            return mSteeringTargets[index];
+        }
+        return vec3();
+    }
     
     void Simulate(float time);
+    
+    float GetMaximumVelocity() const { return mMaxVelocity;}
+    void SetMaximumVelocity(float velocity) { mMaxVelocity = velocity; }
+    
+    float GetMaximumAcceleration() const { return mMaxAcceleration; }
+    void SetMaximumAcceleration(float acceleration) { mMaxAcceleration = acceleration; }
+    
+    float GetSteeringWeight() const { return mSteeringWeight; }
+    void SetSteeringWeight(float weight) { mSteeringWeight = weight; }
+    
+    float GetSeparationWeight() const { return mSeparationWeight; }
+    void SetSeparationWeight(float weight) { mSeparationWeight = weight; }
+    
+    float GetCohesionWeight() const { return mCohesionWeight; }
+    void SetChoesionWeight(float weight) { mCohesionWeight = weight; }
+    
+    float GetAlignmentWeight() const { return mAlignmentWeight; }
+    void SetAlignmentWeight(float weight) { mAlignmentWeight = weight; }
     
 private:
     void BuildVoxelCache();
@@ -41,14 +64,11 @@ private:
     vec3 GetVoxelForBoid(const Boid& boid) const;
     void CheckVoxelForBoids(const Boid& boid, std::vector<NearbyBoid>& result, const vec3& voxelPosition) const;
     
-    uint32_t mBoundsWidth;
-    uint32_t mBoundsHeight;
-    
     float mPerceptionRadius = 30.f;
     
     float mBlindspotAngleDeg = 20.f;
-    float mMaxAcceleration = 100.f;
-    float mMaxVelocity = 200.f;
+    float mMaxAcceleration = 10.f;
+    float mMaxVelocity = 20.f;
     float mAlignmentWeight = 1.0f;
     float mCohesionWeight = 1.0f;
     
@@ -58,7 +78,7 @@ private:
     float mSeparationWeight = 1.0f;
     DistanceType mSeparationType = DistanceType::InverseQuadratic;
     
-    float mSteeringWeight = 0.1f;
+    float mSteeringWeight = 0.5f;
     std::vector<vec3> mSteeringTargets;
     DistanceType mSteeringTargetType = DistanceType::Linear;
 };
